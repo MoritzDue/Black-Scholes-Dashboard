@@ -78,4 +78,57 @@ for vol in vol_values:
     call_matrix.append(call_row)
     put_matrix.append(put_row)
 
-call_df = pd.DataFrame(call_matrix
+call_df = pd.DataFrame(call_matrix, index=[f"{v*100:.0f}%" for v in vol_values], columns=[f"{k}" for k in k_values])
+put_df = pd.DataFrame(put_matrix, index=[f"{v*100:.0f}%" for v in vol_values], columns=[f"{k}" for k in k_values])
+
+# =====================
+# Input Summary
+# =====================
+st.subheader("Current Input Summary")
+summary_df = pd.DataFrame({
+    "Premium": [premium],
+    "Underlying Price (S)": [S],
+    "Strike Price (K)": [K_input],
+    "Time to Expiration (T)": [f"{T} years"],
+    "Risk-Free Rate (r)": [f"{r:.2%}"]
+})
+st.dataframe(summary_df.style.set_properties(**{'text-align': 'center'})
+             .set_table_styles([{'selector': 'th', 'props': [('text-align', 'center')]}]),
+             use_container_width=True)
+
+# =====================
+# Greeks Table
+# =====================
+st.subheader("Option Greeks (for selected Strike & Vol)")
+mid_vol = ((v_min + v_max) / 2) / 100
+greeks = calculate_greeks(S, K_input, T, r, mid_vol)
+
+greeks_df = pd.DataFrame({
+    "Greek": ["Delta", "Gamma", "Vega", "Theta", "Rho"],
+    "Call": [f"{greeks[g][0]:.4f}" for g in greeks],
+    "Put": [f"{greeks[g][1]:.4f}" for g in greeks]
+})
+st.dataframe(greeks_df.style.set_properties(**{'text-align': 'center'})
+             .set_table_styles([{'selector': 'th', 'props': [('text-align', 'center')]}]),
+             use_container_width=True)
+
+# =====================
+# Heatmaps Side by Side
+# =====================
+col1, col2 = st.columns(2)
+
+with col1:
+    st.subheader("📈 Call Heatmap")
+    fig1, ax1 = plt.subplots(figsize=(8, 6))
+    sns.heatmap(call_df, annot=True, fmt=".2f", cmap="RdYlGn", linewidths=0.5, linecolor="gray", cbar_kws={'label': 'Call P&L'}, ax=ax1)
+    ax1.set_xlabel("Strike Price (K)")
+    ax1.set_ylabel("Volatility")
+    st.pyplot(fig1)
+
+with col2:
+    st.subheader("📉 Put Heatmap")
+    fig2, ax2 = plt.subplots(figsize=(8, 6))
+    sns.heatmap(put_df, annot=True, fmt=".2f", cmap="RdYlGn", linewidths=0.5, linecolor="gray", cbar_kws={'label': 'Put P&L'}, ax=ax2)
+    ax2.set_xlabel("Strike Price (K)")
+    ax2.set_ylabel("Volatility")
+    st.pyplot(fig2)
