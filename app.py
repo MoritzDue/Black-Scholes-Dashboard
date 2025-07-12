@@ -11,7 +11,7 @@ def calculate_option_prices(S, K, T, r, vol, premium):
 
 # Streamlit app
 st.set_page_config(page_title="Black-Scholes Option Pricing", layout="centered")
-st.title("📈 Black-Scholes Option Pricing Dashboard")
+st.title("Black-Scholes Option Pricing Dashboard")
 
 st.sidebar.header("Input Parameters")
 
@@ -23,7 +23,7 @@ r_percent = st.sidebar.slider("Risk-Free Rate (r) [%]", 0.0, 100.0, 2.0, 0.01)
 r = r_percent / 100  # Convert to decimal
 
 if st.button("Calculate Option Prices"):
-    st.subheader("📊 Inputs")
+    st.subheader("Inputs")
     col1, col2, col3 = st.columns(3)
     col1.metric("Premium", f"{premium}")
     col2.metric("Underlying Price (S)", f"{S}")
@@ -33,7 +33,7 @@ if st.button("Calculate Option Prices"):
     col4.metric("Time to Expiry (T)", f"{T} years")
     col5.metric("Risk-Free Rate (r)", f"{r:.2%}")
 
-    st.subheader("📉 Call & Put P&L by Volatility")
+    st.subheader("Call & Put P&L by Volatility")
     data = {
         "Volatility": [],
         "Call P&L": [],
