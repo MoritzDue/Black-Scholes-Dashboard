@@ -23,7 +23,7 @@ def calculate_greeks(S, K, T, r, vol):
     delta_put = delta_call - 1
 
     gamma = norm.pdf(d1) / (S * vol * np.sqrt(T))
-    vega = S * norm.pdf(d1) * np.sqrt(T) / 100  # per 1% change
+    vega = S * norm.pdf(d1) * np.sqrt(T) / 100  # per 1% vol change
     theta_call = (-S * norm.pdf(d1) * vol / (2 * np.sqrt(T)) - r * K * np.exp(-r * T) * norm.cdf(d2)) / 365
     theta_put = (-S * norm.pdf(d1) * vol / (2 * np.sqrt(T)) + r * K * np.exp(-r * T) * norm.cdf(-d2)) / 365
     rho_call = K * T * np.exp(-r * T) * norm.cdf(d2) / 100
@@ -38,7 +38,7 @@ def calculate_greeks(S, K, T, r, vol):
     }
 
 # =====================
-# Streamlit UI
+# Streamlit UI Setup
 # =====================
 st.set_page_config(page_title="Black-Scholes Option Pricing", layout="wide")
 st.title("Black-Scholes Option Pricing Dashboard")
@@ -60,7 +60,7 @@ v_min, v_max = st.sidebar.slider("Volatility Range (%)", 5, 200, (10, 100), step
 v_step = st.sidebar.number_input("Volatility Step (%)", 1, 50, 10)
 
 # =====================
-# Calculations
+# Calculations for Heatmaps
 # =====================
 k_values = np.arange(k_min, k_max + k_step, k_step)
 vol_values = np.arange(v_min / 100, v_max / 100 + v_step / 100, v_step / 100)
@@ -78,13 +78,20 @@ for vol in vol_values:
     call_matrix.append(call_row)
     put_matrix.append(put_row)
 
-call_df = pd.DataFrame(call_matrix, index=[f"{v*100:.0f}%" for v in vol_values], columns=[f"{k}" for k in k_values])
-put_df = pd.DataFrame(put_matrix, index=[f"{v*100:.0f}%" for v in vol_values], columns=[f"{k}" for k in k_values])
+call_df = pd.DataFrame(
+    call_matrix,
+    index=[f"{v*100:.0f}%" for v in vol_values],
+    columns=[f"{k}" for k in k_values]
+)
+put_df = pd.DataFrame(
+    put_matrix,
+    index=[f"{v*100:.0f}%" for v in vol_values],
+    columns=[f"{k}" for k in k_values]
+)
 
 # =====================
-# Input Summary
+# Input Summary (single row table)
 # =====================
-st.subheader("Current Input Summary")
 summary_df = pd.DataFrame({
     "Premium": [premium],
     "Underlying Price (S)": [S],
@@ -92,43 +99,68 @@ summary_df = pd.DataFrame({
     "Time to Expiration (T)": [f"{T} years"],
     "Risk-Free Rate (r)": [f"{r:.2%}"]
 })
-st.dataframe(summary_df.style.set_properties(**{'text-align': 'center'})
-             .set_table_styles([{'selector': 'th', 'props': [('text-align', 'center')]}]),
-             use_container_width=True)
 
 # =====================
-# Greeks Table
+# Create Tabs
 # =====================
-st.subheader("Option Greeks (for selected Strike & Vol)")
-mid_vol = ((v_min + v_max) / 2) / 100
-greeks = calculate_greeks(S, K_input, T, r, mid_vol)
+tabs = st.tabs(["Heatmaps", "Greeks Analysis", "Glossary"])
 
-greeks_df = pd.DataFrame({
-    "Greek": ["Delta", "Gamma", "Vega", "Theta", "Rho"],
-    "Call": [f"{greeks[g][0]:.4f}" for g in greeks],
-    "Put": [f"{greeks[g][1]:.4f}" for g in greeks]
-})
-st.dataframe(greeks_df.style.set_properties(**{'text-align': 'center'})
-             .set_table_styles([{'selector': 'th', 'props': [('text-align', 'center')]}]),
-             use_container_width=True)
+# --- Tab 1: Heatmaps ---
+with tabs[0]:
+    st.subheader("Current Input Summary")
+    st.dataframe(summary_df.style.set_properties(**{'text-align': 'center'})
+                 .set_table_styles([{'selector': 'th', 'props': [('text-align', 'center')]}]),
+                 use_container_width=True)
+    col1, col2 = st.columns(2)
 
-# =====================
-# Heatmaps Side by Side
-# =====================
-col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("📈 Call Heatmap")
+        fig1, ax1 = plt.subplots(figsize=(8, 6))
+        sns.heatmap(call_df, annot=True, fmt=".2f", cmap="RdYlGn", linewidths=0.5, linecolor="gray", cbar_kws={'label': 'Call P&L'}, ax=ax1)
+        ax1.set_xlabel("Strike Price (K)")
+        ax1.set_ylabel("Volatility")
+        st.pyplot(fig1)
 
-with col1:
-    st.subheader("📈 Call Heatmap")
-    fig1, ax1 = plt.subplots(figsize=(8, 6))
-    sns.heatmap(call_df, annot=True, fmt=".2f", cmap="RdYlGn", linewidths=0.5, linecolor="gray", cbar_kws={'label': 'Call P&L'}, ax=ax1)
-    ax1.set_xlabel("Strike Price (K)")
-    ax1.set_ylabel("Volatility")
-    st.pyplot(fig1)
+    with col2:
+        st.subheader("📉 Put Heatmap")
+        fig2, ax2 = plt.subplots(figsize=(8, 6))
+        sns.heatmap(put_df, annot=True, fmt=".2f", cmap="RdYlGn", linewidths=0.5, linecolor="gray", cbar_kws={'label': 'Put P&L'}, ax=ax2)
+        ax2.set_xlabel("Strike Price (K)")
+        ax2.set_ylabel("Volatility")
+        st.pyplot(fig2)
 
-with col2:
-    st.subheader("📉 Put Heatmap")
-    fig2, ax2 = plt.subplots(figsize=(8, 6))
-    sns.heatmap(put_df, annot=True, fmt=".2f", cmap="RdYlGn", linewidths=0.5, linecolor="gray", cbar_kws={'label': 'Put P&L'}, ax=ax2)
-    ax2.set_xlabel("Strike Price (K)")
-    ax2.set_ylabel("Volatility")
-    st.pyplot(fig2)
+# --- Tab 2: Greeks ---
+with tabs[1]:
+    st.subheader("Option Greeks (for selected Strike & mid Volatility)")
+    mid_vol = ((v_min + v_max) / 2) / 100
+    greeks = calculate_greeks(S, K_input, T, r, mid_vol)
+
+    greeks_df = pd.DataFrame({
+        "Greek": ["Delta", "Gamma", "Vega", "Theta", "Rho"],
+        "Call": [f"{greeks[g][0]:.4f}" for g in greeks],
+        "Put": [f"{greeks[g][1]:.4f}" for g in greeks]
+    })
+    st.dataframe(greeks_df.style.set_properties(**{'text-align': 'center'})
+                 .set_table_styles([{'selector': 'th', 'props': [('text-align', 'center')]}]),
+                 use_container_width=True)
+
+# --- Tab 3: Glossary ---
+with tabs[2]:
+    st.header("Glossary of Terms")
+    st.markdown("""
+    ### Black-Scholes Model Inputs
+    - **Premium:** The cost paid upfront for the option.
+    - **Underlying Price (S):** Current price of the underlying asset.
+    - **Strike Price (K):** The price at which the option can be exercised.
+    - **Time to Expiration (T):** Time left until the option expires (in years).
+    - **Risk-Free Rate (r):** Annual risk-free interest rate as a decimal.
+    - **Volatility (σ):** Annualized standard deviation of the underlying asset's returns.
+
+    ### Option Greeks
+    - **Delta (Δ):** Sensitivity of option price to a $1 change in underlying asset price.
+    - **Gamma (Γ):** Rate of change of Delta with respect to the underlying price.
+    - **Vega (ν):** Sensitivity to volatility; change in option price for a 1% change in volatility.
+    - **Theta (Θ):** Time decay; change in option price for a one-day decrease in time to expiry.
+    - **Rho (ρ):** Sensitivity to interest rates; change in option price for a 1% change in risk-free rate.
+    """)
+
