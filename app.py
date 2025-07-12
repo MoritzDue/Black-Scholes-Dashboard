@@ -48,6 +48,27 @@ def calculate_greek_matrix(S, K_vals, T, r, vol_vals, greek_name, premium):
             row.append(value)
         matrix.append(row)
     return np.array(matrix)
+
+def calculate_greeks(S, K, T, r, vol):
+    d1 = (np.log(S / K) + (r + 0.5 * vol ** 2) * T) / (vol * np.sqrt(T))
+    d2 = d1 - vol * np.sqrt(T)
+
+    delta_call = norm.cdf(d1)
+    delta_put = delta_call - 1
+    gamma = norm.pdf(d1) / (S * vol * np.sqrt(T))
+    vega = S * norm.pdf(d1) * np.sqrt(T) / 100
+    theta_call = (-S * norm.pdf(d1) * vol / (2 * np.sqrt(T)) - r * K * np.exp(-r * T) * norm.cdf(d2)) / 365
+    theta_put = (-S * norm.pdf(d1) * vol / (2 * np.sqrt(T)) + r * K * np.exp(-r * T) * norm.cdf(-d2)) / 365
+    rho_call = K * T * np.exp(-r * T) * norm.cdf(d2) / 100
+    rho_put = -K * T * np.exp(-r * T) * norm.cdf(-d2) / 100
+
+    return {
+        "Delta": (delta_call, delta_put),
+        "Gamma": (gamma, gamma),
+        "Vega": (vega, vega),
+        "Theta": (theta_call, theta_put),
+        "Rho": (rho_call, rho_put),
+    }
 # =====================
 # Streamlit UI Setup
 # =====================
