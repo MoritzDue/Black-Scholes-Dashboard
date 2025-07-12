@@ -4,6 +4,7 @@ import pandas as pd
 from scipy.stats import norm
 import seaborn as sns
 import matplotlib.pyplot as plt
+import plotly.express as px
 
 # =====================
 # Option Pricing & Greeks
@@ -15,28 +16,38 @@ def calculate_option_prices(S, K, T, r, vol, premium):
     P = K * np.exp(-r * T) * norm.cdf(-d2) - S * norm.cdf(-d1) - premium
     return C, P
 
-def calculate_greeks(S, K, T, r, vol):
-    d1 = (np.log(S / K) + (r + 0.5 * vol**2) * T) / (vol * np.sqrt(T))
-    d2 = d1 - vol * np.sqrt(T)
+# Black-Scholes Greeks calculation function
+def calculate_greek_matrix(S, K_vals, T, r, vol_vals, greek_name, premium):
+    matrix = []
+    for vol in vol_vals:
+        row = []
+        for K in K_vals:
+            d1 = (np.log(S / K) + (r + 0.5 * vol ** 2) * T) / (vol * np.sqrt(T))
+            d2 = d1 - vol * np.sqrt(T)
 
-    delta_call = norm.cdf(d1)
-    delta_put = delta_call - 1
+            delta_call = norm.cdf(d1)
+            delta_put = delta_call - 1
+            gamma = norm.pdf(d1) / (S * vol * np.sqrt(T))
+            vega = S * norm.pdf(d1) * np.sqrt(T) / 100
+            theta_call = (-S * norm.pdf(d1) * vol / (2 * np.sqrt(T)) - r * K * np.exp(-r * T) * norm.cdf(d2)) / 365
+            theta_put = (-S * norm.pdf(d1) * vol / (2 * np.sqrt(T)) + r * K * np.exp(-r * T) * norm.cdf(-d2)) / 365
+            rho_call = K * T * np.exp(-r * T) * norm.cdf(d2) / 100
+            rho_put = -K * T * np.exp(-r * T) * norm.cdf(-d2) / 100
 
-    gamma = norm.pdf(d1) / (S * vol * np.sqrt(T))
-    vega = S * norm.pdf(d1) * np.sqrt(T) / 100  # per 1% vol change
-    theta_call = (-S * norm.pdf(d1) * vol / (2 * np.sqrt(T)) - r * K * np.exp(-r * T) * norm.cdf(d2)) / 365
-    theta_put = (-S * norm.pdf(d1) * vol / (2 * np.sqrt(T)) + r * K * np.exp(-r * T) * norm.cdf(-d2)) / 365
-    rho_call = K * T * np.exp(-r * T) * norm.cdf(d2) / 100
-    rho_put = -K * T * np.exp(-r * T) * norm.cdf(-d2) / 100
+            greek_map = {
+                "Delta": (delta_call, delta_put),
+                "Gamma": (gamma, gamma),
+                "Vega": (vega, vega),
+                "Theta": (theta_call, theta_put),
+                "Rho": (rho_call, rho_put),
+            }
 
-    return {
-        "Delta": (delta_call, delta_put),
-        "Gamma": (gamma, gamma),
-        "Vega": (vega, vega),
-        "Theta": (theta_call, theta_put),
-        "Rho": (rho_call, rho_put)
-    }
-
+            # You can decide if you want call or put here, or both separately
+            # For heatmaps, let's show call Greek by default
+            value = greek_map[greek_name][0]
+            row.append(value)
+        matrix.append(row)
+    return np.array(matrix)
 # =====================
 # Streamlit UI Setup
 # =====================
@@ -103,7 +114,7 @@ summary_df = pd.DataFrame({
 # =====================
 # Create Tabs
 # =====================
-tabs = st.tabs(["Heatmaps", "Greeks Analysis", "Glossary"])
+tabs = st.tabs(["Heatmaps", "Greeks Analysis", "Glossary", "Greek Heatmaps"])
 
 # --- Tab 1: Heatmaps ---
 with tabs[0]:
@@ -163,4 +174,35 @@ with tabs[2]:
     - **Theta (Θ):** Time decay; change in option price for a one-day decrease in time to expiry.
     - **Rho (ρ):** Sensitivity to interest rates; change in option price for a 1% change in risk-free rate.
     """)
+
+with tabs[3]:
+    st.subheader("Interactive Greek Heatmaps")
+
+    greek_choice = st.selectbox("Select Greek to visualize", ["Delta", "Gamma", "Vega", "Theta", "Rho"])
+
+    greek_matrix = calculate_greek_matrix(S, k_values, T, r, vol_values, greek_choice, premium)
+    greek_df = pd.DataFrame(
+        greek_matrix,
+        index=[f"{v*100:.0f}%" for v in vol_values],
+        columns=[f"{k}" for k in k_values]
+    )
+
+    fig = px.imshow(
+        greek_df,
+        labels=dict(x="Strike Price (K)", y="Volatility (%)", color=greek_choice),
+        x=greek_df.columns,
+        y=greek_df.index,
+        color_continuous_scale='RdBu_r',
+        aspect="auto",
+        origin='lower'
+    )
+    fig.update_layout(
+        height=600,
+        margin=dict(l=50, r=50, t=50, b=50),
+    )
+    fig.update_xaxes(side="bottom")
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown(f"**Note:** Values shown are for Call options.")
 
