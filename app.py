@@ -126,6 +126,12 @@ k_step = st.sidebar.number_input("Strike Price Step", 1, 50, 5)
 v_min, v_max = st.sidebar.slider("Volatility Range (%)", 5, 200, (10, 100), step=5)
 v_step = st.sidebar.number_input("Volatility Step (%)", 1, 50, 10)
 
+
+# Sidebar Inputs – Alternative Model Parameters
+st.sidebar.header("Alternative Model Settings")
+steps = st.sidebar.slider("Binomial Tree Steps", 10, 500, 100, step=10)
+n_simulations = st.sidebar.slider("Monte Carlo Simulations", 1000, 100_000, 10000, step=1000)
+
 # =====================
 # Calculations for Heatmaps
 # =====================
@@ -315,9 +321,6 @@ with tabs[6]:
     st.header("Alternative Option Pricing Models")
 
     st.markdown("These models provide alternative methods to Black-Scholes, useful especially when assumptions like constant volatility or continuous trading don't hold.")
-
-    steps = st.slider("Binomial Tree Steps", 10, 500, 100, step=10)
-    n_simulations = st.slider("Monte Carlo Simulations", 1000, 100_000, 10000, step=1000)
 
     st.markdown("Monte Carlo and Binomial results are already integrated into the Model Comparison tab.")
 
