@@ -170,7 +170,14 @@ summary_df = pd.DataFrame({
 # =====================
 # Create Tabs
 # =====================
-tabs = st.tabs(["Heatmaps", "Greeks Analysis", "Glossary", "Greek Heatmaps", "Other Models"])
+tabs = st.tabs([
+    "Heatmaps",
+    "Overview / Comparison",
+    "Greeks Analysis",
+    "Greek Heatmaps",
+    "Other Models",
+    "Glossary"
+])
 
 # --- Tab 1: Heatmaps ---
 with tabs[0]:
@@ -196,8 +203,40 @@ with tabs[0]:
         ax2.set_ylabel("Volatility")
         st.pyplot(fig2)
 
-# --- Tab 2: Greeks ---
+# --- Tab 2: Overview / Comparison ---
 with tabs[1]:
+    st.subheader("Overview / Model Comparison")
+
+    mid_vol = ((v_min + v_max) / 2) / 100
+    steps = 100  # default or synced with slider if persistent
+    n_simulations = 10000  # default or synced
+
+    call_bs, put_bs = calculate_option_prices(S, K_input, T, r, mid_vol, premium)
+    call_mc = monte_carlo_option_pricing(S, K_input, T, r, mid_vol, n_simulations=n_simulations, option_type="call")
+    put_mc = monte_carlo_option_pricing(S, K_input, T, r, mid_vol, n_simulations=n_simulations, option_type="put")
+    call_bin = binomial_option_pricing(S, K_input, T, r, mid_vol, steps=steps, option_type="call")
+    put_bin = binomial_option_pricing(S, K_input, T, r, mid_vol, steps=steps, option_type="put")
+
+    comparison_df = pd.DataFrame({
+        "Model": ["Black-Scholes", "Monte Carlo", "Binomial Tree"] * 2,
+        "Option Type": ["Call"] * 3 + ["Put"] * 3,
+        "Price": [call_bs, call_mc, call_bin, put_bs, put_mc, put_bin]
+    })
+
+    comparison_df["Price"] = comparison_df["Price"].apply(lambda x: f"{x:.4f}")
+
+    st.dataframe(comparison_df.style.set_properties(**{'text-align': 'center'}).set_table_styles([
+        {'selector': 'th', 'props': [('text-align', 'center')]}
+    ]), use_container_width=True)
+
+    st.markdown("""
+    - **Black-Scholes**: Closed-form solution, assumes constant volatility and no early exercise.
+    - **Monte Carlo**: Good for complex/path-dependent options, less efficient for European vanilla.
+    - **Binomial Tree**: Flexible for American options; increases accuracy with more steps.
+    """)
+
+# --- Tab 3: Greeks ---
+with tabs[2]:
     st.subheader("Option Greeks (for selected Strike & mid Volatility)")
     mid_vol = ((v_min + v_max) / 2) / 100
     greeks = calculate_greeks(S, K_input, T, r, mid_vol)
@@ -211,26 +250,7 @@ with tabs[1]:
                  .set_table_styles([{'selector': 'th', 'props': [('text-align', 'center')]}]),
                  use_container_width=True)
 
-# --- Tab 3: Glossary ---
-with tabs[2]:
-    st.header("Glossary of Terms")
-    st.markdown("""
-    ### Black-Scholes Model Inputs
-    - **Premium:** The cost paid upfront for the option.
-    - **Underlying Price (S):** Current price of the underlying asset.
-    - **Strike Price (K):** The price at which the option can be exercised.
-    - **Time to Expiration (T):** Time left until the option expires (in years).
-    - **Risk-Free Rate (r):** Annual risk-free interest rate as a decimal.
-    - **Volatility (σ):** Annualized standard deviation of the underlying asset's returns.
-
-    ### Option Greeks
-    - **Delta (Δ):** Sensitivity of option price to a $1 change in underlying asset price.
-    - **Gamma (Γ):** Rate of change of Delta with respect to the underlying price.
-    - **Vega (ν):** Sensitivity to volatility; change in option price for a 1% change in volatility.
-    - **Theta (Θ):** Time decay; change in option price for a one-day decrease in time to expiry.
-    - **Rho (ρ):** Sensitivity to interest rates; change in option price for a 1% change in risk-free rate.
-    """)
-
+# --- Tab 4: Greek Heatmaps ---
 with tabs[3]:
     st.subheader("Interactive Greek Heatmaps")
 
@@ -259,13 +279,11 @@ with tabs[3]:
     fig.update_xaxes(side="bottom")
 
     st.plotly_chart(fig, use_container_width=True)
-
     st.markdown(f"**Note:** Values shown are for Call options.")
 
 # --- Tab 5: Other Models ---
 with tabs[4]:
     st.header("Alternative Option Pricing Models")
-
     st.markdown("These models provide alternative methods to Black-Scholes, useful especially when assumptions like constant volatility or continuous trading don't hold.")
 
     steps = st.slider("Binomial Tree Steps", 10, 500, 100, step=10)
@@ -291,4 +309,24 @@ with tabs[4]:
     **Notes**:
     - Monte Carlo is better suited for path-dependent options like Asian or Barrier options.
     - Binomial Tree can handle American options if extended.
+    """)
+
+# --- Tab 6: Glossary ---
+with tabs[5]:
+    st.header("Glossary of Terms")
+    st.markdown("""
+    ### Black-Scholes Model Inputs
+    - **Premium:** The cost paid upfront for the option.
+    - **Underlying Price (S):** Current price of the underlying asset.
+    - **Strike Price (K):** The price at which the option can be exercised.
+    - **Time to Expiration (T):** Time left until the option expires (in years).
+    - **Risk-Free Rate (r):** Annual risk-free interest rate as a decimal.
+    - **Volatility (σ):** Annualized standard deviation of the underlying asset's returns.
+
+    ### Option Greeks
+    - **Delta (Δ):** Sensitivity of option price to a $1 change in underlying asset price.
+    - **Gamma (Γ):** Rate of change of Delta with respect to the underlying price.
+    - **Vega (ν):** Sensitivity to volatility; change in option price for a 1% change in volatility.
+    - **Theta (Θ):** Time decay; change in option price for a one-day decrease in time to expiry.
+    - **Rho (ρ):** Sensitivity to interest rates; change in option price for a 1% change in risk-free rate.
     """)
