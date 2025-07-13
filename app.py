@@ -171,22 +171,75 @@ summary_df = pd.DataFrame({
 # Create Tabs
 # =====================
 tabs = st.tabs([
+    "Overview / Guide",
+    "Model Comparison",
     "Heatmaps",
-    "Overview / Comparison",
     "Greeks Analysis",
     "Greek Heatmaps",
+    "Error Analysis",
     "Other Models",
     "Glossary"
 ])
 
-# --- Tab 1: Heatmaps ---
+# --- Tab 0: Overview / Guide ---
 with tabs[0]:
-    st.subheader("Current Input Summary")
-    st.dataframe(summary_df.style.set_properties(**{'text-align': 'center'})
-                 .set_table_styles([{'selector': 'th', 'props': [('text-align', 'center')]}]),
-                 use_container_width=True)
-    col1, col2 = st.columns(2)
+    st.header("Understanding European Options")
+    st.info("This dashboard explores **vanilla European call and put options** only. These can be exercised **only at expiration**.")
 
+    st.markdown("""
+    ### What is an Option?
+    - A **Call Option** gives the holder the right to **buy** an asset at a predetermined price (strike).
+    - A **Put Option** gives the holder the right to **sell** an asset at the strike price.
+
+    ### Payoff Profiles:
+    """)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.image("assets/call_payoff.png", caption="Call Option Payoff")
+    with col2:
+        st.image("assets/put_payoff.png", caption="Put Option Payoff")
+
+# --- Tab 1: Model Comparison ---
+with tabs[1]:
+    st.subheader("Overview / Model Comparison")
+
+    mid_vol = ((v_min + v_max) / 2) / 100
+    call_bs, put_bs = calculate_option_prices(S, K_input, T, r, mid_vol, premium)
+    call_mc = monte_carlo_option_pricing(S, K_input, T, r, mid_vol, n_simulations=n_simulations, option_type="call") - premium
+    put_mc = monte_carlo_option_pricing(S, K_input, T, r, mid_vol, n_simulations=n_simulations, option_type="put") - premium
+    call_bin = binomial_option_pricing(S, K_input, T, r, mid_vol, steps=steps, option_type="call") - premium
+    put_bin = binomial_option_pricing(S, K_input, T, r, mid_vol, steps=steps, option_type="put") - premium
+
+    comparison_df = pd.DataFrame({
+        "Model": ["Black-Scholes", "Monte Carlo", "Binomial Tree"] * 2,
+        "Option Type": ["Call"] * 3 + ["Put"] * 3,
+        "Price": [call_bs, call_mc, call_bin, put_bs, put_mc, put_bin]
+    })
+
+    comparison_df["Price"] = comparison_df["Price"].apply(lambda x: f"{x:.4f}")
+
+    st.dataframe(comparison_df.style.set_properties(**{'text-align': 'center'}).set_table_styles([
+        {'selector': 'th', 'props': [('text-align', 'center')]}
+    ]), use_container_width=True)
+
+    fig = px.bar(comparison_df, x="Model", y="Price", color="Option Type", barmode="group", title="Option Prices by Model")
+    st.plotly_chart(fig)
+
+    st.markdown("""
+    - **Black-Scholes**: Closed-form solution, assumes constant volatility and no early exercise.
+    - **Monte Carlo**: Good for complex/path-dependent options, less efficient for vanilla.
+    - **Binomial Tree**: Flexible for American options; increases accuracy with more steps.
+    """)
+
+# --- Tab 2: Heatmaps ---
+with tabs[2]:
+    st.subheader("Current Input Summary")
+    st.dataframe(summary_df.style.set_properties(**{'text-align': 'center'}).set_table_styles([
+        {'selector': 'th', 'props': [('text-align', 'center')]}
+    ]), use_container_width=True)
+
+    col1, col2 = st.columns(2)
     with col1:
         st.subheader("📈 Call Heatmap")
         fig1, ax1 = plt.subplots(figsize=(8, 6))
@@ -203,58 +256,9 @@ with tabs[0]:
         ax2.set_ylabel("Volatility")
         st.pyplot(fig2)
 
-# --- Tab 2: Overview / Comparison ---
-with tabs[1]:
-    st.subheader("Overview / Model Comparison")
-
-    mid_vol = ((v_min + v_max) / 2) / 100
-    steps = 100
-    n_simulations = 10000
-
-    # --- Calculate model prices
-    call_bs, put_bs = calculate_option_prices(S, K_input, T, r, mid_vol, premium)
-    call_mc = monte_carlo_option_pricing(S, K_input, T, r, mid_vol, n_simulations, "call")
-    put_mc = monte_carlo_option_pricing(S, K_input, T, r, mid_vol, n_simulations, "put")
-    call_bin = binomial_option_pricing(S, K_input, T, r, mid_vol, steps, "call")
-    put_bin = binomial_option_pricing(S, K_input, T, r, mid_vol, steps, "put")
-
-    # --- Adjust for premium
-    models = ["Black-Scholes", "Monte Carlo", "Binomial Tree"]
-    call_prices = [call_bs, call_mc - premium, call_bin - premium]
-    put_prices = [put_bs, put_mc - premium, put_bin - premium]
-
-    comparison_df = pd.DataFrame({
-        "Model": models * 2,
-        "Option Type": ["Call"] * 3 + ["Put"] * 3,
-        "Net Price (after premium)": [f"{p:.4f}" for p in call_prices + put_prices]
-    })
-
-    st.dataframe(comparison_df.style.set_properties(**{'text-align': 'center'})
-                 .set_table_styles([{'selector': 'th', 'props': [('text-align', 'center')]}]),
-                 use_container_width=True)
-
-    # --- Visual error plot (absolute error vs BS)
-    call_errors = [0] + [abs(c - call_prices[0]) for c in call_prices[1:]]
-    put_errors = [0] + [abs(p - put_prices[0]) for p in put_prices[1:]]
-
-    error_df = pd.DataFrame({
-        "Model": ["Black-Scholes", "Monte Carlo", "Binomial Tree"],
-        "Call Error": call_errors,
-        "Put Error": put_errors
-    })
-
-    fig = px.bar(
-        error_df.melt(id_vars="Model", var_name="Type", value_name="Absolute Error"),
-        x="Model", y="Absolute Error", color="Type",
-        barmode="group", title="Pricing Error vs Black-Scholes"
-    )
-    st.plotly_chart(fig, use_container_width=True)
-
-
 # --- Tab 3: Greeks ---
-with tabs[2]:
+with tabs[3]:
     st.subheader("Option Greeks (for selected Strike & mid Volatility)")
-    mid_vol = ((v_min + v_max) / 2) / 100
     greeks = calculate_greeks(S, K_input, T, r, mid_vol)
 
     greeks_df = pd.DataFrame({
@@ -262,12 +266,12 @@ with tabs[2]:
         "Call": [f"{greeks[g][0]:.4f}" for g in greeks],
         "Put": [f"{greeks[g][1]:.4f}" for g in greeks]
     })
-    st.dataframe(greeks_df.style.set_properties(**{'text-align': 'center'})
-                 .set_table_styles([{'selector': 'th', 'props': [('text-align', 'center')]}]),
-                 use_container_width=True)
+    st.dataframe(greeks_df.style.set_properties(**{'text-align': 'center'}).set_table_styles([
+        {'selector': 'th', 'props': [('text-align', 'center')]}
+    ]), use_container_width=True)
 
 # --- Tab 4: Greek Heatmaps ---
-with tabs[3]:
+with tabs[4]:
     st.subheader("Interactive Greek Heatmaps")
 
     greek_choice = st.selectbox("Select Greek to visualize", ["Delta", "Gamma", "Vega", "Theta", "Rho"])
@@ -288,85 +292,79 @@ with tabs[3]:
         aspect="auto",
         origin='lower'
     )
-    fig.update_layout(
-        height=600,
-        margin=dict(l=50, r=50, t=50, b=50),
-    )
+    fig.update_layout(height=600, margin=dict(l=50, r=50, t=50, b=50))
     fig.update_xaxes(side="bottom")
 
     st.plotly_chart(fig, use_container_width=True)
-    st.markdown(f"**Note:** Values shown are for Call options.")
+    st.markdown("**Note:** Values shown are for Call options.")
 
-# --- Tab 5: Other Models ---
-with tabs[4]:
+# --- Tab 5: Error Analysis ---
+with tabs[5]:
+    st.subheader("Error Analysis vs Black-Scholes")
+    comparison_df["Raw Price"] = [call_bs, call_mc, call_bin, put_bs, put_mc, put_bin]
+    comparison_df["Error vs BS"] = comparison_df.groupby("Option Type")["Raw Price"].apply(lambda x: ((x - x.iloc[0]) / x.iloc[0]) * 100)
+
+    error_fig = px.bar(
+        comparison_df,
+        x="Model",
+        y="Error vs BS",
+        color="Option Type",
+        barmode="group",
+        title="% Error Compared to Black-Scholes"
+    )
+    st.plotly_chart(error_fig)
+
+# --- Tab 6: Other Models ---
+with tabs[6]:
     st.header("Alternative Option Pricing Models")
+
     st.markdown("These models provide alternative methods to Black-Scholes, useful especially when assumptions like constant volatility or continuous trading don't hold.")
 
     steps = st.slider("Binomial Tree Steps", 10, 500, 100, step=10)
     n_simulations = st.slider("Monte Carlo Simulations", 1000, 100_000, 10000, step=1000)
 
-    call_mc = monte_carlo_option_pricing(S, K_input, T, r, mid_vol, n_simulations=n_simulations, option_type="call")
-    put_mc = monte_carlo_option_pricing(S, K_input, T, r, mid_vol, n_simulations=n_simulations, option_type="put")
+    st.markdown("Monte Carlo and Binomial results are already integrated into the Model Comparison tab.")
 
-    call_bin = binomial_option_pricing(S, K_input, T, r, mid_vol, steps=steps, option_type="call")
-    put_bin = binomial_option_pricing(S, K_input, T, r, mid_vol, steps=steps, option_type="put")
-
-    results_df = pd.DataFrame({
-        "Model": ["Monte Carlo", "Monte Carlo", "Binomial Tree", "Binomial Tree"],
-        "Option Type": ["Call", "Put", "Call", "Put"],
-        "Price": [f"{call_mc:.4f}", f"{put_mc:.4f}", f"{call_bin:.4f}", f"{put_bin:.4f}"]
-    })
-
-    st.dataframe(results_df.style.set_properties(**{'text-align': 'center'})
-                 .set_table_styles([{'selector': 'th', 'props': [('text-align', 'center')]}]),
-                 use_container_width=True)
-
-
-
-with tabs[5]:
-    st.header("Glossary of Terms")
-
-    st.markdown("### 1. Model Inputs")
+# --- Tab 7: Glossary ---
+with tabs[7]:
+    st.header("📘 Glossary & Model Overview")
     st.markdown("""
-    - **Underlying Price (S):** Current price of the asset.
-    - **Strike Price (K):** Price at which the option can be exercised.
-    - **Time to Expiration (T):** Time left until option expires, in years.
-    - **Risk-Free Rate (r):** Annualized interest rate.
-    - **Volatility (σ):** Expected annualized standard deviation of returns.
-    - **Premium:** Initial cost paid to buy the option.
+    ### Models
+
+    #### ⬇️ Black-Scholes
+    - **Type**: Analytical (Closed-form)
+    - **Assumptions**: Constant volatility, no early exercise, lognormal returns
+    - **Use**: European vanilla options
+    - **Method**: Uses cumulative normal distributions for pricing
+
+    #### 🎲 Monte Carlo
+    - **Type**: Stochastic Simulation
+    - **Assumptions**: Risk-neutral paths
+    - **Use**: Complex or path-dependent payoffs
+    - **Method**: Averages discounted simulated payoffs
+
+    #### 🌳 Binomial Tree
+    - **Type**: Discrete Lattice
+    - **Assumptions**: Stepwise price evolution
+    - **Use**: American/European options
+    - **Method**: Recursively evaluates payoffs from tree nodes
+
+    ---
+
+    ### Core Terms
+    - **Call Option**: Right to buy at strike
+    - **Put Option**: Right to sell at strike
+    - **Strike Price (K)**: Predetermined exercise price
+    - **Underlying Price (S)**: Current price of asset
+    - **Volatility (σ)**: Annualized standard deviation of returns
+    - **Risk-Free Rate (r)**: Discounting interest rate
+    - **Time to Expiry (T)**: In years
+    - **Premium**: Cost to purchase the option
+
+    ### Greeks
+    - **Delta (Δ)**: Price sensitivity to underlying
+    - **Gamma (Γ)**: Rate of change of delta
+    - **Vega (ν)**: Sensitivity to volatility
+    - **Theta (Θ)**: Time decay per day
+    - **Rho (ρ)**: Sensitivity to interest rate
     """)
-
-    st.markdown("### 2. Option Greeks")
-    st.markdown("""
-    - **Delta (Δ):** Change in option price per $1 move in the asset.
-    - **Gamma (Γ):** Change in Delta per $1 move in the asset.
-    - **Vega (ν):** Change in option price per 1% change in volatility.
-    - **Theta (Θ):** Daily time decay of the option's value.
-    - **Rho (ρ):** Change in option price per 1% change in interest rate.
-    """)
-
-    st.markdown("### 3. Pricing Models")
-
-    st.markdown("#### • Black-Scholes Model")
-    st.markdown("""
-    - Closed-form formula assuming constant volatility and no early exercise.
-    - Based on risk-neutral valuation and log-normal asset returns.
-    - Best suited for European vanilla options.
-    """)
-
-    st.markdown("#### • Monte Carlo Simulation")
-    st.markdown("""
-    - Simulates thousands of possible price paths using geometric Brownian motion.
-    - Calculates the average payoff across paths, discounted to present.
-    - Flexible and handles path-dependent options, but computationally intensive.
-    """)
-
-    st.markdown("#### • Binomial Tree Model")
-    st.markdown("""
-    - Constructs a discrete tree of asset prices using up/down steps.
-    - Option value is calculated by backward induction from the tree's leaves.
-    - Can handle American options and provides more flexibility than BSM.
-    """)
-
-    st.markdown("---")
-    st.markdown("📘 *Use this section as a reference for understanding the pricing and sensitivity outputs shown in the dashboard.*")
