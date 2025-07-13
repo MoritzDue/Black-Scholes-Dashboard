@@ -200,7 +200,7 @@ with tabs[0]:
     ### Payoff Profiles:
     """)
 
-st.image("https://www.researchgate.net/profile/Sanele-Makamo/publication/324123429/figure/fig1/AS:610151379787776@1522482833834/The-illustration-of-payoff-for-standard-options.png")
+    st.image("https://www.researchgate.net/profile/Sanele-Makamo/publication/324123429/figure/fig1/AS:610151379787776@1522482833834/The-illustration-of-payoff-for-standard-options.png")
 
 # --- Tab 1: Model Comparison ---
 with tabs[1]:
