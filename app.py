@@ -208,32 +208,48 @@ with tabs[1]:
     st.subheader("Overview / Model Comparison")
 
     mid_vol = ((v_min + v_max) / 2) / 100
-    steps = 100  # default or synced with slider if persistent
-    n_simulations = 10000  # default or synced
+    steps = 100
+    n_simulations = 10000
 
+    # --- Calculate model prices
     call_bs, put_bs = calculate_option_prices(S, K_input, T, r, mid_vol, premium)
-    call_mc = monte_carlo_option_pricing(S, K_input, T, r, mid_vol, n_simulations=n_simulations, option_type="call")
-    put_mc = monte_carlo_option_pricing(S, K_input, T, r, mid_vol, n_simulations=n_simulations, option_type="put")
-    call_bin = binomial_option_pricing(S, K_input, T, r, mid_vol, steps=steps, option_type="call")
-    put_bin = binomial_option_pricing(S, K_input, T, r, mid_vol, steps=steps, option_type="put")
+    call_mc = monte_carlo_option_pricing(S, K_input, T, r, mid_vol, n_simulations, "call")
+    put_mc = monte_carlo_option_pricing(S, K_input, T, r, mid_vol, n_simulations, "put")
+    call_bin = binomial_option_pricing(S, K_input, T, r, mid_vol, steps, "call")
+    put_bin = binomial_option_pricing(S, K_input, T, r, mid_vol, steps, "put")
+
+    # --- Adjust for premium
+    models = ["Black-Scholes", "Monte Carlo", "Binomial Tree"]
+    call_prices = [call_bs, call_mc - premium, call_bin - premium]
+    put_prices = [put_bs, put_mc - premium, put_bin - premium]
 
     comparison_df = pd.DataFrame({
-        "Model": ["Black-Scholes", "Monte Carlo", "Binomial Tree"] * 2,
+        "Model": models * 2,
         "Option Type": ["Call"] * 3 + ["Put"] * 3,
-        "Price": [call_bs, call_mc, call_bin, put_bs, put_mc, put_bin]
+        "Net Price (after premium)": [f"{p:.4f}" for p in call_prices + put_prices]
     })
 
-    comparison_df["Price"] = comparison_df["Price"].apply(lambda x: f"{x:.4f}")
+    st.dataframe(comparison_df.style.set_properties(**{'text-align': 'center'})
+                 .set_table_styles([{'selector': 'th', 'props': [('text-align', 'center')]}]),
+                 use_container_width=True)
 
-    st.dataframe(comparison_df.style.set_properties(**{'text-align': 'center'}).set_table_styles([
-        {'selector': 'th', 'props': [('text-align', 'center')]}
-    ]), use_container_width=True)
+    # --- Visual error plot (absolute error vs BS)
+    call_errors = [0] + [abs(c - call_prices[0]) for c in call_prices[1:]]
+    put_errors = [0] + [abs(p - put_prices[0]) for p in put_prices[1:]]
 
-    st.markdown("""
-    - **Black-Scholes**: Closed-form solution, assumes constant volatility and no early exercise.
-    - **Monte Carlo**: Good for complex/path-dependent options, less efficient for European vanilla.
-    - **Binomial Tree**: Flexible for American options; increases accuracy with more steps.
-    """)
+    error_df = pd.DataFrame({
+        "Model": ["Black-Scholes", "Monte Carlo", "Binomial Tree"],
+        "Call Error": call_errors,
+        "Put Error": put_errors
+    })
+
+    fig = px.bar(
+        error_df.melt(id_vars="Model", var_name="Type", value_name="Absolute Error"),
+        x="Model", y="Absolute Error", color="Type",
+        barmode="group", title="Pricing Error vs Black-Scholes"
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
 
 # --- Tab 3: Greeks ---
 with tabs[2]:
@@ -305,28 +321,52 @@ with tabs[4]:
                  .set_table_styles([{'selector': 'th', 'props': [('text-align', 'center')]}]),
                  use_container_width=True)
 
-    st.markdown("""
-    **Notes**:
-    - Monte Carlo is better suited for path-dependent options like Asian or Barrier options.
-    - Binomial Tree can handle American options if extended.
-    """)
 
-# --- Tab 6: Glossary ---
+
 with tabs[5]:
     st.header("Glossary of Terms")
-    st.markdown("""
-    ### Black-Scholes Model Inputs
-    - **Premium:** The cost paid upfront for the option.
-    - **Underlying Price (S):** Current price of the underlying asset.
-    - **Strike Price (K):** The price at which the option can be exercised.
-    - **Time to Expiration (T):** Time left until the option expires (in years).
-    - **Risk-Free Rate (r):** Annual risk-free interest rate as a decimal.
-    - **Volatility (σ):** Annualized standard deviation of the underlying asset's returns.
 
-    ### Option Greeks
-    - **Delta (Δ):** Sensitivity of option price to a $1 change in underlying asset price.
-    - **Gamma (Γ):** Rate of change of Delta with respect to the underlying price.
-    - **Vega (ν):** Sensitivity to volatility; change in option price for a 1% change in volatility.
-    - **Theta (Θ):** Time decay; change in option price for a one-day decrease in time to expiry.
-    - **Rho (ρ):** Sensitivity to interest rates; change in option price for a 1% change in risk-free rate.
+    st.markdown("### 1. Model Inputs")
+    st.markdown("""
+    - **Underlying Price (S):** Current price of the asset.
+    - **Strike Price (K):** Price at which the option can be exercised.
+    - **Time to Expiration (T):** Time left until option expires, in years.
+    - **Risk-Free Rate (r):** Annualized interest rate.
+    - **Volatility (σ):** Expected annualized standard deviation of returns.
+    - **Premium:** Initial cost paid to buy the option.
     """)
+
+    st.markdown("### 2. Option Greeks")
+    st.markdown("""
+    - **Delta (Δ):** Change in option price per $1 move in the asset.
+    - **Gamma (Γ):** Change in Delta per $1 move in the asset.
+    - **Vega (ν):** Change in option price per 1% change in volatility.
+    - **Theta (Θ):** Daily time decay of the option's value.
+    - **Rho (ρ):** Change in option price per 1% change in interest rate.
+    """)
+
+    st.markdown("### 3. Pricing Models")
+
+    st.markdown("#### • Black-Scholes Model")
+    st.markdown("""
+    - Closed-form formula assuming constant volatility and no early exercise.
+    - Based on risk-neutral valuation and log-normal asset returns.
+    - Best suited for European vanilla options.
+    """)
+
+    st.markdown("#### • Monte Carlo Simulation")
+    st.markdown("""
+    - Simulates thousands of possible price paths using geometric Brownian motion.
+    - Calculates the average payoff across paths, discounted to present.
+    - Flexible and handles path-dependent options, but computationally intensive.
+    """)
+
+    st.markdown("#### • Binomial Tree Model")
+    st.markdown("""
+    - Constructs a discrete tree of asset prices using up/down steps.
+    - Option value is calculated by backward induction from the tree's leaves.
+    - Can handle American options and provides more flexibility than BSM.
+    """)
+
+    st.markdown("---")
+    st.markdown("📘 *Use this section as a reference for understanding the pricing and sensitivity outputs shown in the dashboard.*")
