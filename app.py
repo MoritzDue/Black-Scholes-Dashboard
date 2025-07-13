@@ -194,11 +194,7 @@ with tabs[0]:
     ### Payoff Profiles:
     """)
 
-    col1, col2 = st.columns(2)
-    with col1:
-        st.image("assets/call_payoff.png", caption="Call Option Payoff")
-    with col2:
-        st.image("assets/put_payoff.png", caption="Put Option Payoff")
+st.image("https://www.researchgate.net/profile/Sanele-Makamo/publication/324123429/figure/fig1/AS:610151379787776@1522482833834/The-illustration-of-payoff-for-standard-options.png")
 
 # --- Tab 1: Model Comparison ---
 with tabs[1]:
