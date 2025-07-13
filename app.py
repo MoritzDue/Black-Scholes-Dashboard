@@ -304,7 +304,7 @@ with tabs[4]:
 with tabs[5]:
     st.subheader("Error Analysis vs Black-Scholes")
     comparison_df["Raw Price"] = [call_bs, call_mc, call_bin, put_bs, put_mc, put_bin]
-    comparison_df["Error vs BS"] = comparison_df.groupby("Option Type")["Raw Price"].apply(lambda x: ((x - x.iloc[0]) / x.iloc[0]) * 100)
+    comparison_df["Error vs BS"] = comparison_df.groupby("Option Type")["Raw Price"].transform(lambda x: ((x - x.iloc[0]) / x.iloc[0]) * 100)
 
     error_fig = px.bar(
         comparison_df,
