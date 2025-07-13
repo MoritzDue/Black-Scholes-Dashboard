@@ -69,6 +69,41 @@ def calculate_greeks(S, K, T, r, vol):
         "Theta": (theta_call, theta_put),
         "Rho": (rho_call, rho_put),
     }
+
+# =====================
+# Alternative Pricing Models
+# =====================
+
+def monte_carlo_option_pricing(S, K, T, r, sigma, n_simulations=10000, option_type="call"):
+    np.random.seed(42)
+    z = np.random.standard_normal(n_simulations)
+    ST = S * np.exp((r - 0.5 * sigma ** 2) * T + sigma * np.sqrt(T) * z)
+    if option_type == "call":
+        payoff = np.maximum(ST - K, 0)
+    else:
+        payoff = np.maximum(K - ST, 0)
+    return np.exp(-r * T) * np.mean(payoff)
+
+def binomial_option_pricing(S, K, T, r, sigma, steps=100, option_type="call"):
+    dt = T / steps
+    u = np.exp(sigma * np.sqrt(dt))
+    d = 1 / u
+    p = (np.exp(r * dt) - d) / (u - d)
+    
+    # Stock price tree
+    ST = np.array([S * u**j * d**(steps - j) for j in range(steps + 1)])
+    
+    # Option value at maturity
+    if option_type == "call":
+        option_values = np.maximum(ST - K, 0)
+    else:
+        option_values = np.maximum(K - ST, 0)
+    
+    # Step backward through tree
+    for i in range(steps - 1, -1, -1):
+        option_values = np.exp(-r * dt) * (p * option_values[1:] + (1 - p) * option_values[:-1])
+    
+    return option_values[0]
 # =====================
 # Streamlit UI Setup
 # =====================
@@ -135,7 +170,7 @@ summary_df = pd.DataFrame({
 # =====================
 # Create Tabs
 # =====================
-tabs = st.tabs(["Heatmaps", "Greeks Analysis", "Glossary", "Greek Heatmaps"])
+tabs = st.tabs(["Heatmaps", "Greeks Analysis", "Glossary", "Greek Heatmaps", "Other Models"])
 
 # --- Tab 1: Heatmaps ---
 with tabs[0]:
@@ -227,3 +262,33 @@ with tabs[3]:
 
     st.markdown(f"**Note:** Values shown are for Call options.")
 
+# --- Tab 5: Other Models ---
+with tabs[4]:
+    st.header("Alternative Option Pricing Models")
+
+    st.markdown("These models provide alternative methods to Black-Scholes, useful especially when assumptions like constant volatility or continuous trading don't hold.")
+
+    steps = st.slider("Binomial Tree Steps", 10, 500, 100, step=10)
+    n_simulations = st.slider("Monte Carlo Simulations", 1000, 100_000, 10000, step=1000)
+
+    call_mc = monte_carlo_option_pricing(S, K_input, T, r, mid_vol, n_simulations=n_simulations, option_type="call")
+    put_mc = monte_carlo_option_pricing(S, K_input, T, r, mid_vol, n_simulations=n_simulations, option_type="put")
+
+    call_bin = binomial_option_pricing(S, K_input, T, r, mid_vol, steps=steps, option_type="call")
+    put_bin = binomial_option_pricing(S, K_input, T, r, mid_vol, steps=steps, option_type="put")
+
+    results_df = pd.DataFrame({
+        "Model": ["Monte Carlo", "Monte Carlo", "Binomial Tree", "Binomial Tree"],
+        "Option Type": ["Call", "Put", "Call", "Put"],
+        "Price": [f"{call_mc:.4f}", f"{put_mc:.4f}", f"{call_bin:.4f}", f"{put_bin:.4f}"]
+    })
+
+    st.dataframe(results_df.style.set_properties(**{'text-align': 'center'})
+                 .set_table_styles([{'selector': 'th', 'props': [('text-align', 'center')]}]),
+                 use_container_width=True)
+
+    st.markdown("""
+    **Notes**:
+    - Monte Carlo is better suited for path-dependent options like Asian or Barrier options.
+    - Binomial Tree can handle American options if extended.
+    """)
