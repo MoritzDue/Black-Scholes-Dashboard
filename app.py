@@ -183,7 +183,6 @@ tabs = st.tabs([
     "Greeks Analysis",
     "Greek Heatmaps",
     "Error Analysis",
-    "Other Models",
     "Glossary"
 ])
 
@@ -316,16 +315,9 @@ with tabs[5]:
     )
     st.plotly_chart(error_fig)
 
-# --- Tab 6: Other Models ---
+
+# --- Tab 6: Glossary ---
 with tabs[6]:
-    st.header("Alternative Option Pricing Models")
-
-    st.markdown("These models provide alternative methods to Black-Scholes, useful especially when assumptions like constant volatility or continuous trading don't hold.")
-
-    st.markdown("Monte Carlo and Binomial results are already integrated into the Model Comparison tab.")
-
-# --- Tab 7: Glossary ---
-with tabs[7]:
     st.header("📘 Glossary & Model Overview")
     st.markdown("""
     ### Models
