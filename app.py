@@ -342,7 +342,7 @@ with tabs[6]:
 
     ---
 
-    ### Core Terms
+    ### Core Terms XXX
     - **Call Option**: Right to buy at strike
     - **Put Option**: Right to sell at strike
     - **Strike Price (K)**: Predetermined exercise price
@@ -359,3 +359,4 @@ with tabs[6]:
     - **Theta (Θ)**: Time decay per day
     - **Rho (ρ)**: Sensitivity to interest rate
     """)
+
