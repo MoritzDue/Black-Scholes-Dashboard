@@ -4,7 +4,7 @@ import pandas as pd
 from scipy.stats import norm
 import seaborn as sns
 import matplotlib.pyplot as plt
-import plotly.express as px
+import plotly.graph_objects as go   
 
 # =====================
 # Black-Scholes Pricing & Greeks
@@ -119,18 +119,19 @@ with tabs[0]:
 # --- Tab 1: Option Surfaces ---
 with tabs[1]:
     st.subheader("3D Surfaces for Option Value")
-    fig_call = px.surface(
-        x=k_values, y=vol_values*100, z=call_matrix,
-        labels={'x':"Strike (K)", 'y':"Volatility (%)", 'z':"Call Value"},
-        title="Call Option Surface"
-    )
+
+    fig_call = go.Figure(data=[go.Surface(
+        z=call_matrix, x=k_values, y=vol_values*100, colorscale="Viridis"
+    )])
+    fig_call.update_layout(title="Call Option Surface",
+        scene=dict(xaxis_title="Strike (K)", yaxis_title="Volatility (%)", zaxis_title="Call Value"))
     st.plotly_chart(fig_call, use_container_width=True)
 
-    fig_put = px.surface(
-        x=k_values, y=vol_values*100, z=put_matrix,
-        labels={'x':"Strike (K)", 'y':"Volatility (%)", 'z':"Put Value"},
-        title="Put Option Surface"
-    )
+    fig_put = go.Figure(data=[go.Surface(
+        z=put_matrix, x=k_values, y=vol_values*100, colorscale="Cividis"
+    )])
+    fig_put.update_layout(title="Put Option Surface",
+        scene=dict(xaxis_title="Strike (K)", yaxis_title="Volatility (%)", zaxis_title="Put Value"))
     st.plotly_chart(fig_put, use_container_width=True)
 
 # --- Tab 2: Heatmaps ---
@@ -139,13 +140,17 @@ with tabs[2]:
     option_choice = st.selectbox("Select Option Type", ["Call", "Put"])
     if option_choice == "Call":
         fig, ax = plt.subplots(figsize=(8, 6))
-        sns.heatmap(call_df, annot=True, fmt=".2f", cmap="RdYlGn", linewidths=0.5, linecolor="gray", cbar_kws={'label': 'Call P&L'}, ax=ax)
+        sns.heatmap(call_df, annot=True, fmt=".2f", cmap="RdYlGn",
+                    linewidths=0.5, linecolor="gray",
+                    cbar_kws={'label': 'Call P&L'}, ax=ax)
         ax.set_xlabel("Strike Price (K)")
         ax.set_ylabel("Volatility")
         st.pyplot(fig)
     else:
         fig, ax = plt.subplots(figsize=(8, 6))
-        sns.heatmap(put_df, annot=True, fmt=".2f", cmap="RdYlGn", linewidths=0.5, linecolor="gray", cbar_kws={'label': 'Put P&L'}, ax=ax)
+        sns.heatmap(put_df, annot=True, fmt=".2f", cmap="RdYlGn",
+                    linewidths=0.5, linecolor="gray",
+                    cbar_kws={'label': 'Put P&L'}, ax=ax)
         ax.set_xlabel("Strike Price (K)")
         ax.set_ylabel("Volatility")
         st.pyplot(fig)
@@ -166,9 +171,10 @@ with tabs[3]:
     st.subheader("3D Greek Surfaces")
     greek_choice = st.selectbox("Select Greek", ["Delta", "Gamma", "Vega", "Theta", "Rho"])
     greek_matrix = calculate_greek_matrix(S, k_values, T, r, vol_values, greek_choice)
-    fig = px.surface(
-        x=k_values, y=vol_values*100, z=greek_matrix,
-        labels={'x':"Strike (K)", 'y':"Volatility (%)", 'z':greek_choice},
-        title=f"{greek_choice} Surface"
-    )
-    st.plotly_chart(fig, use_container_width=True)
+
+    fig_greek = go.Figure(data=[go.Surface(
+        z=greek_matrix, x=k_values, y=vol_values*100, colorscale="Plasma"
+    )])
+    fig_greek.update_layout(title=f"{greek_choice} Surface",
+        scene=dict(xaxis_title="Strike (K)", yaxis_title="Volatility (%)", zaxis_title=greek_choice))
+    st.plotly_chart(fig_greek, use_container_width=True)
