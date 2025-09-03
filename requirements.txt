@@ -1,7 +1,8 @@
-streamlit
-numpy
-pandas
-scipy
-seaborn
-matplotlib
-plotly
+Python 3.10+
+Streamlit
+NumPy
+Pandas
+SciPy
+Seaborn
+Matplotlib
+Plotly
