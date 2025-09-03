@@ -2,10 +2,9 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 from scipy.stats import norm
-from scipy.optimize import brentq
 import seaborn as sns
 import matplotlib.pyplot as plt
-import plotly.graph_objects as go
+import plotly.graph_objects as go   
 
 # =====================
 # Black-Scholes Pricing & Greeks
@@ -64,26 +63,6 @@ def calculate_greeks(S, K, T, r, vol):
     }
 
 # =====================
-# Implied Volatility Helpers
-# =====================
-def bs_price(S, K, T, r, vol, option_type="call"):
-    d1 = (np.log(S / K) + (r + 0.5 * vol ** 2) * T) / (vol * np.sqrt(T))
-    d2 = d1 - vol * np.sqrt(T)
-    if option_type == "call":
-        return S * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(d2)
-    else:
-        return K * np.exp(-r * T) * norm.cdf(-d2) - S * norm.cdf(-d1)
-
-def implied_volatility(price, S, K, T, r, option_type="call"):
-    try:
-        return brentq(
-            lambda vol: bs_price(S, K, T, r, vol, option_type) - price,
-            1e-6, 5.0, maxiter=500
-        )
-    except ValueError:
-        return np.nan
-
-# =====================
 # Streamlit Setup
 # =====================
 st.set_page_config(page_title="Black-Scholes Option Pricing", layout="wide")
@@ -129,7 +108,7 @@ put_df = pd.DataFrame(put_matrix, index=[f"{v*100:.0f}%" for v in vol_values], c
 # =====================
 # Tabs
 # =====================
-tabs = st.tabs(["Overview", "Option Surfaces", "Heatmaps", "Greeks", "Implied Volatility"])
+tabs = st.tabs(["Overview", "Option Surfaces", "Heatmaps", "Greeks"])
 
 # --- Tab 0: Overview ---
 with tabs[0]:
@@ -199,56 +178,3 @@ with tabs[3]:
     fig_greek.update_layout(title=f"{greek_choice} Surface",
         scene=dict(xaxis_title="Strike (K)", yaxis_title="Volatility (%)", zaxis_title=greek_choice))
     st.plotly_chart(fig_greek, use_container_width=True)
-
-# --- Tab 4: Implied Volatility ---
-with tabs[4]:
-    st.subheader("Implied Volatility Calculator")
-
-    option_type = st.selectbox("Option Type", ["Call", "Put"])
-    market_price = st.number_input("Market Option Price", value=5.0, step=0.1)
-
-    iv = implied_volatility(market_price, S, K_input, T, r,
-                            option_type.lower())
-    if np.isnan(iv):
-        st.error("No valid implied volatility found for these inputs.")
-    else:
-        st.success(f"Implied Volatility: {iv*100:.2f}%")
-
-    # --- Implied Volatility Smile ---
-    st.subheader("Implied Volatility Smile (Synthetic)")
-    market_vol = st.slider("Choose synthetic 'true' volatility (%)",
-                           min_value=5, max_value=100, value=20, step=1) / 100.0
-
-    strikes = np.arange(K_input - 30, K_input + 30, 2)
-    prices = [bs_price(S, K, T, r, market_vol, option_type.lower()) for K in strikes]
-    ivs = [implied_volatility(p, S, K, T, r, option_type.lower()) for p, K in zip(prices, strikes)]
-
-    fig_smile = go.Figure()
-    fig_smile.add_trace(go.Scatter(x=strikes, y=[iv*100 for iv in ivs],
-                                   mode="lines+markers", name="IV"))
-    fig_smile.update_layout(title=f"Synthetic Implied Volatility Smile (True Vol = {market_vol*100:.1f}%)",
-        xaxis_title="Strike (K)", yaxis_title="Implied Volatility (%)")
-    st.plotly_chart(fig_smile, use_container_width=True)
-
-    # --- Implied Volatility Surface ---
-    st.subheader("Implied Volatility Surface (Synthetic)")
-    maturities = np.linspace(0.1, 2.0, 10)  # 0.1y to 2y
-    K_range = np.arange(K_input - 30, K_input + 30, 5)
-
-    surface = []
-    for T_mat in maturities:
-        row = []
-        for K in K_range:
-            price = bs_price(S, K, T_mat, r, market_vol, option_type.lower())
-            iv_val = implied_volatility(price, S, K, T_mat, r, option_type.lower())
-            row.append(iv_val)
-        surface.append(row)
-
-    surface = np.array(surface)
-
-    fig_surface = go.Figure(data=[go.Surface(
-        z=surface*100, x=K_range, y=maturities, colorscale="Viridis"
-    )])
-    fig_surface.update_layout(title="Synthetic Implied Volatility Surface",
-        scene=dict(xaxis_title="Strike (K)", yaxis_title="Maturity (Years)", zaxis_title="Implied Volatility (%)"))
-    st.plotly_chart(fig_surface, use_container_width=True)
