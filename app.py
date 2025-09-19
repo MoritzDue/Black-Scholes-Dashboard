@@ -138,8 +138,6 @@ with tabs[0]:
       $d_2 = d_1 - \\sigma \\sqrt{T}$
     """)
 
-    st.image("https://www.researchgate.net/profile/Sanele-Makamo/publication/324123429/figure/fig1/AS:610151379787776@1522482833834/The-illustration-of-payoff-for-standard-options.png")
-
 
 # --- Tab 1: Option Surfaces ---
 with tabs[1]:
@@ -203,4 +201,5 @@ with tabs[3]:
     fig_greek.update_layout(title=f"{greek_choice} Surface",
         scene=dict(xaxis_title="Strike (K)", yaxis_title="Volatility (%)", zaxis_title=greek_choice))
     st.plotly_chart(fig_greek, use_container_width=True)
+
 
