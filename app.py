@@ -112,9 +112,34 @@ tabs = st.tabs(["Overview", "Option Surfaces", "Heatmaps", "Greeks"])
 
 # --- Tab 0: Overview ---
 with tabs[0]:
-    st.header("Understanding European Options")
-    st.info("We explore **vanilla European call and put options** using the Black-Scholes model.")
+    st.header("Black-Scholes Model Overview")
+    st.markdown("""
+    The Black-Scholes model is a foundational framework for pricing European call and put options. 
+    It assumes constant volatility and interest rates, and no dividends.
+
+    **Call Option Formula**:
+    $$
+    C(S, t) = S \\cdot N(d_1) - K \\cdot e^{-rT} \\cdot N(d_2)
+    $$
+
+    **Put Option Formula**:
+    $$
+    P(S, t) = K \\cdot e^{-rT} \\cdot N(-d_2) - S \\cdot N(-d_1)
+    $$
+
+    Where:
+    - $S$: Current price of the underlying asset  
+    - $K$: Strike price  
+    - $T$: Time to expiration (in years)  
+    - $r$: Risk-free interest rate  
+    - $\\sigma$: Volatility  
+    - $N(\\cdot)$: Standard normal cumulative distribution function  
+    - $d_1 = \\frac{\\ln(S/K) + (r + 0.5 \\sigma^2)T}{\\sigma \\sqrt{T}}$,  
+      $d_2 = d_1 - \\sigma \\sqrt{T}$
+    """)
+
     st.image("https://www.researchgate.net/profile/Sanele-Makamo/publication/324123429/figure/fig1/AS:610151379787776@1522482833834/The-illustration-of-payoff-for-standard-options.png")
+
 
 # --- Tab 1: Option Surfaces ---
 with tabs[1]:
@@ -178,3 +203,4 @@ with tabs[3]:
     fig_greek.update_layout(title=f"{greek_choice} Surface",
         scene=dict(xaxis_title="Strike (K)", yaxis_title="Volatility (%)", zaxis_title=greek_choice))
     st.plotly_chart(fig_greek, use_container_width=True)
+
